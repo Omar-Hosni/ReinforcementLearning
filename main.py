@@ -1,7 +1,9 @@
 import os
-from stable_baseline3 import PPO
-from stable_basline3.vec_env import DummyVecEnv
-from stable_baseline3.common.evalutaion import evaluation_policy
+import gym
+from stable_baselines3 import PPO
+from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import EvalCallback, StopTrainingOnRewardThreshold
 
 """
 
@@ -74,5 +76,37 @@ for episode in range(1, episodes+1):
         
         score += reward
         print(f'Episodes:{episode}, Score:{score}')
-env.close()
+#env.close()
+action, _ = model.predict(abs)
+print(env.step(action))
 
+stop_callback = StopTrainingOnRewardThreshold(reward_threshold=200,verbose=1)
+
+save_path = os.path.join('Training','Saved Models')
+
+eval_callback = EvalCallback(env,
+                             callback_on_new_best=stop_callback,
+                             eval_freq=10000,
+                             best_model_save_path=save_path,
+                             verbose=1)
+
+model = PPO('MlpPolicy',env,verbose=1,tensorboard_log=log_path)
+model.learn(total_timesteps=20000, callback=eval_callback)
+
+#Changing Policies (using different neural network, configuring number of layers)
+net_arch = [dict(pi=[128,128,128,128], vf=[128,128,128,128])] #net architecture
+model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=log_path, policy_kwargs={'net_arch':net_arch})
+model.learn(total_timelaps=20000, callback=eval_callback)
+
+#using alternate algorithm
+from stable_baselines3 import DQN
+
+model = DQN('MlpPolicy', env, verbose=1, tensorboard_log=log_path)
+model.learn(total_timesteps=2000)
+
+DQN_Path = os.join("Training","Saved Models","DQN_Model_CartPole")
+model.save(DQN_Path)
+
+del model
+
+DQN.load(DQN_Path, env=env)
